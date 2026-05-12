@@ -3,30 +3,110 @@
 #include <memory>
 #include <iterator>
 
-template<typename K, typename V, typename Comp=std::less<K>>
+template <typename K, typename V, typename Comp=std::less<K>>
 class bst {
-  
-  struct node_t {
-    std::pair<const K, V> key_val;
-    std::unique_ptr<node_t> left_child, right_child;
-  };
 
-  std::unique_ptr<node_t> head;
+  using pair_type = std::pair<const K, V>;
+
+  struct node_t;
+
+  std::unique_ptr<node_t> root;
 
 public:
-  class Iterator{
-    node_t* current;
-  public:
-    using value_type = V;
-    using difference_type = std::ptrdiff_t;
-    using iterator_category = std::forward_iterator_tag;
-    using reference = value_type&;
-    using pointer = value_type*;
-  };
 
+  template <typename VV>
+  class _iterator;
+
+  using iterator = _iterator<V>;
+  using const_iterator = _iterator<const V>;
+
+  bst() = default;
+  ~bst() = default;
+};
+
+template <typename K, typename V, typename Comp>
+struct bst<K, V, Comp>::node_t {
+
+  pair_type key_val;
+
+  std::unique_ptr<node_t> left_child, right_child;
+
+  node_t* parent;
+
+  /* Return a pointer to the node with the smallest key of the sub-tree starting from this node */
+  node_t* get_minimun() const noexcept {
+    auto tmp = this;
+    while (tmp->left_child)
+      tmp = tmp->left_child.get();
+    return tmp;
+  }
+
+  /* Return true if the current node has a right child, false otherwise */
+  bool has_right_child() const noexcept { return right_child; }
+
+  /* Return the node with the smallest key greater then the key of the current node */
+  node_t* next() const {
+    if (has_right_child())
+      return right_child->get_minimum();
+    auto tmp = this;
+    auto tmp_parent = this->parent;
+    while (tmp_parent && tmp_parent->right_child.get()==tmp) {
+      tmp = tmp_parent;
+      tmp_parent = tmp->parent;
+    }
+    return tmp_parent;
+  }
+};
+
+template <typename K, typename V, typename Comp>
+template <typename VV>
+class bst<K, V, Comp>::_iterator{
+  using node_t = typename bst<K, V, Comp>::node_t;
+  node_t* current;
+public:
+  using value_type = VV;
+  using difference_type = std::ptrdiff_t;
+  using iterator_category = std::forward_iterator_tag;
+  using reference = value_type&;
+  using pointer = value_type*;
+
+  explicit _iterator(node_t* const ptr): current{ptr} {}
+
+  _iterator(const _iterator& that) = default;
+
+  reference operator*() const noexcept {
+    return current->key_val.first;
+  }
+
+  pointer operator->() const noexcept {
+    return &**this;
+  }
+
+  // pre-increment
+  iterator& operator++() noexcept {
+    current = current->next();
+    return *this;
+  }
+
+  // post increment
+  iterator& operator++(int) noexcept {
+    auto tmp{*this};
+    ++(*this);
+    return tmp;
+  }
+
+  friend bool operator==(const _iterator& lhs, const _iterator& rhs) noexcept {
+    return lhs.current == rhs.current;
+  }
+
+  friend bool operator!=(const _iterator& lhs, const _iterator& rhs) noexcept {
+    return !(lhs==rhs);
+  }
 };
 
 int main() {
+
+  auto test = bst<int, double>();
 
   std::cout << "Ciao from bst data structure!!" << std::endl;
 
