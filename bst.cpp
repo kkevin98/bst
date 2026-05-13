@@ -22,6 +22,22 @@ public:
 
   bst() = default;
   ~bst() = default;
+
+  iterator begin() noexcept {
+    return root ? iterator{root->get_minimum()} : iterator{nullptr};
+  }
+  iterator end() noexcept { return iterator{nullptr}; }
+
+  const_iterator begin() const noexcept {
+    return root ? const_iterator{root->get_minimum()} : const_iterator{nullptr};
+  }
+  const_iterator end() const noexcept { return const_iterator{nullptr}; }
+
+  const_iterator cbegin() const noexcept {
+    return root ? const_iterator{root->get_minimum()} : const_iterator{nullptr};
+  }
+  const_iterator cend() const noexcept { return const_iterator{nullptr}; }
+
 };
 
 template <typename K, typename V, typename Comp>
