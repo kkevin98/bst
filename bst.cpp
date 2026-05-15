@@ -12,6 +12,8 @@ class bst {
 
   std::unique_ptr<node_t> root;
 
+  const Comp compare = Comp{};
+
 public:
 
   template <typename VV>
@@ -22,6 +24,34 @@ public:
 
   bst() = default;
   ~bst() = default;
+
+  /* Return an iterator to the node containg the key x, if any; end() otherwise */
+  iterator find(const K& x) noexcept {
+    auto tmp = root.get();
+    while (tmp)
+      if (compare(x, tmp->key_val.first()))
+        tmp = tmp->left_child.get();
+      else if (compare(tmp->key_val.first(), x))
+        tmp = tmp->right_child.get();
+      else break;
+    return tmp ? iterator{tmp} : end();
+  }
+
+  /* Return a const_iterator to the node containg the key x, if any; end() otherwise */
+  iterator find(const K& x) const noexcept {
+    auto tmp = root.get();
+    while (tmp)
+      if (compare(x, tmp->key_val.first()))
+        tmp = tmp->left_child.get();
+      else if (compare(tmp->key_val.first(), x))
+        tmp = tmp->right_child.get();
+      else break;
+    return tmp ? const_iterator{tmp} : end();
+  }
+
+  std::pair<iterator, bool> insert(const pair_type& x);
+
+  std::pair<iterator, bool> insert(pair_type&& x);
 
   iterator begin() noexcept {
     return root ? iterator{root->get_minimum()} : iterator{nullptr};
