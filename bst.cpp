@@ -6,7 +6,9 @@
 template <typename K, typename V, typename Comp=std::less<K>>
 class bst {
 
-  using pair_type = std::pair<const K, V>;
+  using key_type = K;
+  using value_type = V;
+  using pair_type = std::pair<const key_type, value_type>;
 
   struct node_t;
 
@@ -26,7 +28,7 @@ public:
   ~bst() = default;
 
   /* Return an iterator to the node containg the key x, if any; end() otherwise */
-  iterator find(const K& x) noexcept {
+  iterator find(const key_type& x) noexcept {
     auto tmp = root.get();
     while (tmp)
       if (compare(x, tmp->key_val.first()))
@@ -38,7 +40,7 @@ public:
   }
 
   /* Return a const_iterator to the node containg the key x, if any; end() otherwise */
-  iterator find(const K& x) const noexcept {
+  iterator find(const key_type& x) const noexcept {
     auto tmp = root.get();
     while (tmp)
       if (compare(x, tmp->key_val.first()))
