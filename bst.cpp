@@ -6,23 +6,30 @@
 template <typename K, typename V, typename Comp=std::less<K>>
 class bst {
 
-  using key_type = K;
-  using value_type = V;
-  using pair_type = std::pair<const key_type, value_type>;
-
   struct node_t;
-
-  std::unique_ptr<node_t> root;
-
-  const Comp compare = Comp{};
-
-public:
 
   template <typename VV>
   class _iterator;
 
+public:
+
+  using key_type = K;
+  using value_type = V;
+  using pair_type = std::pair<const key_type, value_type>;
   using iterator = _iterator<V>;
   using const_iterator = _iterator<const V>;
+
+private:
+
+  // member vars
+  std::unique_ptr<node_t> root;
+  const Comp compare = Comp{};
+
+  // member functions
+  template <typename F>
+  std::pair<iterator, bool> _insert(F&& x);
+
+public:
 
   bst() = default;
   ~bst() = default;
@@ -51,9 +58,23 @@ public:
     return tmp ? const_iterator{tmp} : end();
   }
 
-  std::pair<iterator, bool> insert(const pair_type& x);
+  /* Insert a new node with key-value specified in x.
+   * If a node with the specified key is already present the tree is not modified.
+   * Return an <iterator, flag> pair where:
+   *   iterator: indicate the node with the specified key;
+   *   flag    : is true if a new node has been inserted, false otherwise. */
+  std::pair<iterator, bool> insert(const pair_type& x) {
+    return _insert(x);
+  }
 
-  std::pair<iterator, bool> insert(pair_type&& x);
+  /* Insert a new node with key-value specified in x.
+   * If a node with the specified key is already present the tree is not modified.
+   * Return an <iterator, flag> pair where:
+   *   iterator: indicate the node with the specified key;
+   *   flag    : is true if a new node has been inserted, false otherwise. */
+  std::pair<iterator, bool> insert(pair_type&& x) {
+    return _insert(std::move(x));
+  }
 
   iterator begin() noexcept {
     return root ? iterator{root->get_minimum()} : iterator{nullptr};
@@ -72,6 +93,31 @@ public:
 
 };
 
+
+template <typename K, typename V, typename Comp>
+template <typename F>
+std::pair<typename bst<K, V, Comp>::iterator, bool> bst<K, V, Comp>::_insert(F&& x) {
+  bool inserted = true;
+  if (!root) {
+    root.reset(new node_t{std::forward<F>(x)});
+    return {iterator{root.get()}, inserted};
+  }
+  node_t* parent = nullptr;
+  node_t* tmp = root.get();
+  while (tmp) {
+    parent = tmp;
+    if (compare(x.first, tmp->key_val.first))
+      tmp = tmp->left_child.get();
+    else if (compare(tmp->key_val.first, x.first))
+      tmp = tmp->right_child.get();
+    else {
+      inserted = false;
+      return {iterator{tmp}, inserted};
+    }
+  }
+  return std::pair{iterator{parent->create_child(std::forward<F>(x))}, inserted};
+}
+
 template <typename K, typename V, typename Comp>
 struct bst<K, V, Comp>::node_t {
 
@@ -80,6 +126,10 @@ struct bst<K, V, Comp>::node_t {
   std::unique_ptr<node_t> left_child, right_child;
 
   node_t* parent;
+
+  node_t(const pair_type& x) : key_val{x} {};
+
+  node_t(pair_type&& x) : key_val{std::move(x)} {};
 
   /* Return a pointer to the node with the smallest key of the sub-tree starting from this node */
   node_t* get_minimun() const noexcept {
@@ -104,6 +154,26 @@ struct bst<K, V, Comp>::node_t {
     }
     return tmp_parent;
   }
+
+  template <typename F>
+  node_t* _create_child(F&& x) {
+    //TODO: Add assert to ckeck that keys are not equal
+    auto new_node = new node_t{std::forward<F>(x)};
+    if (Comp{}(x.first, key_val.first))
+      left_child.reset(new_node);
+    else
+      right_child.reset(new_node);
+    return new_node;
+  }
+
+  node_t* create_child(const pair_type& x) {
+    return _create_child(x);
+  }
+
+  node_t* create_child(pair_type&& x) {
+    return _create_child(std::move(x));
+  }
+
 };
 
 template <typename K, typename V, typename Comp>
@@ -155,8 +225,25 @@ public:
 int main() {
 
   auto test = bst<int, double>();
+  auto insertion_result = test.insert({1, 12});
 
-  std::cout << "Ciao from bst data structure!!" << std::endl;
+  if (insertion_result.second == false)
+    std::cout << "Something wrong happened while adding root" << std::endl;
+
+  insertion_result = test.insert({10, 1});
+  insertion_result = test.insert({5, 2});
+  insertion_result = test.insert({0, 100});
+
+  if (insertion_result.second == false)
+    std::cout << "Something wrong happened while adding nodes" << std::endl;
+
+  insertion_result = test.insert({1, 27});
+
+  if (insertion_result.second == true)
+    std::cout << "Something wrong happened while modifing root" << std::endl;
+
+  for (const auto it : test)
+    std::cout << *it << std::endl;
 
   return 0;
 }
