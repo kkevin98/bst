@@ -3,6 +3,7 @@
 #include <memory>
 #include <iterator>
 
+
 template <typename K, typename V, typename Comp=std::less<K>>
 class bst {
 
@@ -38,21 +39,21 @@ public:
   iterator find(const key_type& x) noexcept {
     auto tmp = root.get();
     while (tmp)
-      if (compare(x, tmp->key_val.first()))
+      if (compare(x, tmp->key_val.first))
         tmp = tmp->left_child.get();
-      else if (compare(tmp->key_val.first(), x))
+      else if (compare(tmp->key_val.first, x))
         tmp = tmp->right_child.get();
       else break;
     return tmp ? iterator{tmp} : end();
   }
 
   /* Return a const_iterator to the node containg the key x, if any; end() otherwise */
-  iterator find(const key_type& x) const noexcept {
+  const_iterator find(const key_type& x) const noexcept {
     auto tmp = root.get();
     while (tmp)
-      if (compare(x, tmp->key_val.first()))
+      if (compare(x, tmp->key_val.first))
         tmp = tmp->left_child.get();
-      else if (compare(tmp->key_val.first(), x))
+      else if (compare(tmp->key_val.first, x))
         tmp = tmp->right_child.get();
       else break;
     return tmp ? const_iterator{tmp} : end();
@@ -131,8 +132,20 @@ struct bst<K, V, Comp>::node_t {
 
   node_t(pair_type&& x) : key_val{std::move(x)} {};
 
+  node_t(const pair_type& x, node_t* const p) : node_t{x} { parent = p; }
+
+  node_t(pair_type&& x, node_t* const p) : node_t{std::move(x)} { parent = p; }
+
   /* Return a pointer to the node with the smallest key of the sub-tree starting from this node */
-  node_t* get_minimun() const noexcept {
+  node_t* get_minimum() noexcept {
+    auto tmp = this;
+    while (tmp->left_child)
+      tmp = tmp->left_child.get();
+    return tmp;
+  }
+
+  /* Return a pointer to the node with the smallest key of the sub-tree starting from this node */
+  const node_t* get_minimum() const noexcept {
     auto tmp = this;
     while (tmp->left_child)
       tmp = tmp->left_child.get();
@@ -140,7 +153,7 @@ struct bst<K, V, Comp>::node_t {
   }
 
   /* Return true if the current node has a right child, false otherwise */
-  bool has_right_child() const noexcept { return right_child; }
+  bool has_right_child() const noexcept { return right_child!=nullptr; }
 
   /* Return the node with the smallest key greater then the key of the current node */
   node_t* next() const {
@@ -158,7 +171,7 @@ struct bst<K, V, Comp>::node_t {
   template <typename F>
   node_t* _create_child(F&& x) {
     //TODO: Add assert to ckeck that keys are not equal
-    auto new_node = new node_t{std::forward<F>(x)};
+    auto new_node = new node_t{std::forward<F>(x), this};
     if (Comp{}(x.first, key_val.first))
       left_child.reset(new_node);
     else
@@ -190,10 +203,8 @@ public:
 
   explicit _iterator(node_t* const ptr): current{ptr} {}
 
-  _iterator(const _iterator& that) = default;
-
   reference operator*() const noexcept {
-    return current->key_val.first;
+    return current->key_val.second;
   }
 
   pointer operator->() const noexcept {
@@ -225,6 +236,12 @@ public:
 int main() {
 
   auto test = bst<int, double>();
+
+  auto find_result = test.find(0);
+
+  if (find_result != test.end())
+    std::cout << "Something went wrong while finding on an empty tree" << std::endl;
+
   auto insertion_result = test.insert({1, 12});
 
   if (insertion_result.second == false)
@@ -242,8 +259,9 @@ int main() {
   if (insertion_result.second == true)
     std::cout << "Something wrong happened while modifing root" << std::endl;
 
-  for (const auto it : test)
-    std::cout << *it << std::endl;
+  for (const auto v : test) {
+    std::cout << v << std::endl;
+  }
 
   return 0;
 }
