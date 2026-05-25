@@ -92,6 +92,17 @@ public:
   }
   const_iterator cend() const noexcept { return const_iterator{nullptr}; }
 
+  friend std::ostream& operator<<(std::ostream& os, const bst& x) {
+    auto it = x.cbegin();
+    auto last = x.cend();
+    if (it == last)
+      os << "Tree is empty";
+    else while (it!=last) {
+      os << *it << ", ";
+      ++it;
+    }
+    return os;
+  }
 };
 
 
@@ -212,13 +223,13 @@ public:
   }
 
   // pre-increment
-  iterator& operator++() noexcept {
+  _iterator& operator++() noexcept {
     current = current->next();
     return *this;
   }
 
   // post increment
-  iterator& operator++(int) noexcept {
+  _iterator& operator++(int) noexcept {
     auto tmp{*this};
     ++(*this);
     return tmp;
@@ -238,6 +249,8 @@ int main() {
   auto test = bst<int, double>();
 
   auto find_result = test.find(0);
+
+  std::cout << test << std::endl;
 
   if (find_result != test.end())
     std::cout << "Something went wrong while finding on an empty tree" << std::endl;
@@ -259,9 +272,7 @@ int main() {
   if (insertion_result.second == true)
     std::cout << "Something wrong happened while modifing root" << std::endl;
 
-  for (const auto v : test) {
-    std::cout << v << std::endl;
-  }
+  std::cout << test << std::endl;
 
   return 0;
 }
