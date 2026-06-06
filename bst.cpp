@@ -3,7 +3,6 @@
 #include <memory>
 #include <iterator>
 
-
 template <typename K, typename V, typename Comp=std::less<K>>
 class bst {
 
@@ -28,7 +27,10 @@ private:
 
   // member functions
   template <typename F>
-  std::pair<iterator, bool> _insert(F&& x);
+  std::pair<iterator, bool> _lazy_insert(F&& x);
+
+  template <typename... Ts>
+  std::pair<iterator, bool> _insert(Ts&&... x);
 
 public:
 
@@ -65,7 +67,7 @@ public:
    *   iterator: indicate the node with the specified key;
    *   flag    : is true if a new node has been inserted, false otherwise. */
   std::pair<iterator, bool> insert(const pair_type& x) {
-    return _insert(x);
+    return _lazy_insert(x);
   }
 
   /* Insert a new node with key-value specified in x.
@@ -74,8 +76,20 @@ public:
    *   iterator: indicate the node with the specified key;
    *   flag    : is true if a new node has been inserted, false otherwise. */
   std::pair<iterator, bool> insert(pair_type&& x) {
-    return _insert(std::move(x));
+    return _lazy_insert(std::move(x));
   }
+
+  /* Constuct a new node with the given arguments and append it to the tree.
+   * If a node with the key equial to the one of the new node is already
+   * present, the tree is not modified.
+   * Return an <iterator, flag> pair where:
+   *   iterator: indicate the node with the specified key;
+   *   flag    : is true if a new node has been inserted, false otherwise. */
+  template <typename... Ts>
+  std::pair<iterator, bool> emplace(Ts&&... args) {
+    return _insert(std::forward<Ts>(args)...);
+  }
+
 
   iterator begin() noexcept {
     return root ? iterator{root->get_minimum()} : iterator{nullptr};
@@ -105,10 +119,20 @@ public:
   }
 };
 
-
+/* Return a pair of an iterator pointing to the node with the specified
+ * key and a bool representing the result of the insertion.
+ * The bool is false (no insertion is performed) in case a node with
+ * the specified key is alredy present in the tree and itertor points
+ * to that exact node.
+ * The bool is true (thus an newly node has been inserted) in case a
+ * node with the specified key is not already present in the tree. In
+ * this case the returned iterator points to the newly inserted node.
+ *
+ * Note: A new node is created if and only if the given key is not already
+ *       present in the tree. */
 template <typename K, typename V, typename Comp>
 template <typename F>
-std::pair<typename bst<K, V, Comp>::iterator, bool> bst<K, V, Comp>::_insert(F&& x) {
+std::pair<typename bst<K, V, Comp>::iterator, bool> bst<K, V, Comp>::_lazy_insert(F&& x) {
   bool inserted = true;
   if (!root) {
     root.reset(new node_t{std::forward<F>(x)});
@@ -130,6 +154,45 @@ std::pair<typename bst<K, V, Comp>::iterator, bool> bst<K, V, Comp>::_insert(F&&
   return std::pair{iterator{parent->create_child(std::forward<F>(x))}, inserted};
 }
 
+/* Construct a node with the given arguments and possibly add it to the
+ * tree. If the newly constructed node turns out having the same key of
+ * a node already present in the tree, it is destroyed and the insertion
+ * does not take place; it inserted otherwise.
+ * This function return a pair consisting of:
+ *   - an iterator pointing to the node with the same key as the one
+ *     constructed with the given arguments
+ *   - a bool which is true if a new node has been inserted in the tree,
+ *     false otherwise.
+ *
+ * Note: A new node is created indipendently if its key is already
+ *       present in the tree or not. */
+template <typename K, typename V, typename Comp>
+template <typename... Ts>
+std::pair<typename bst<K, V, Comp>::iterator, bool> bst<K, V, Comp>::_insert(Ts&&... x) {
+  node_t* new_node = new node_t{std::forward<Ts>(x)...};
+
+  bool inserted = true;
+  if (!root) {
+    root.reset(new_node);
+    return {iterator{root.get()}, inserted};
+  }
+  node_t* parent = nullptr;
+  node_t* tmp = root.get();
+  while (tmp) {
+    parent = tmp;
+    if (compare(new_node->key_val.first, tmp->key_val.first))
+      tmp = tmp->left_child.get();
+    else if (compare(tmp->key_val.first, new_node->key_val.first))
+      tmp = tmp->right_child.get();
+    else {
+      inserted = false;
+      delete new_node;
+      return {iterator{tmp}, inserted};
+    }
+  }
+  return std::pair{iterator{parent->add_child(new_node)}, inserted};
+}
+
 template <typename K, typename V, typename Comp>
 struct bst<K, V, Comp>::node_t {
 
@@ -143,9 +206,8 @@ struct bst<K, V, Comp>::node_t {
 
   node_t(pair_type&& x) : key_val{std::move(x)} {};
 
-  node_t(const pair_type& x, node_t* const p) : node_t{x} { parent = p; }
-
-  node_t(pair_type&& x, node_t* const p) : node_t{std::move(x)} { parent = p; }
+  template <typename... Ts>
+  node_t(Ts&&... args) : key_val{std::forward<Ts>(args)...} {};
 
   /* Return a pointer to the node with the smallest key of the sub-tree starting from this node */
   node_t* get_minimum() noexcept {
@@ -179,21 +241,33 @@ struct bst<K, V, Comp>::node_t {
     return tmp_parent;
   }
 
-  template <typename F>
-  node_t* _create_child(F&& x) {
+  /* Set the node pointed to by 'x' as left of right child for the
+   * current node according to their keys */
+  node_t* add_child(node_t* x) noexcept {
+    //TODO: Add assert to check that node hasn't a parent yet
+    //TODO: Add assert to check that childs are not alredy occupied
     //TODO: Add assert to ckeck that keys are not equal
-    auto new_node = new node_t{std::forward<F>(x), this};
-    if (Comp{}(x.first, key_val.first))
-      left_child.reset(new_node);
+    x->parent = this;
+    if (Comp{}(x->key_val.first, this->key_val.first))
+      left_child.reset(x);
     else
-      right_child.reset(new_node);
-    return new_node;
+      right_child.reset(x);
+    return x;
   }
 
+  template <typename F>
+  node_t* _create_child(F&& x) {
+    return add_child(new node_t{std::forward<F>(x)});
+  }
+
+  /* Construct and add a child to the current node given the key-value
+   * pair 'x' */
   node_t* create_child(const pair_type& x) {
     return _create_child(x);
   }
 
+  /* Construct and add a child to the current node given the key-value
+   * pair 'x' */
   node_t* create_child(pair_type&& x) {
     return _create_child(std::move(x));
   }
@@ -271,6 +345,12 @@ int main() {
 
   if (insertion_result.second == true)
     std::cout << "Something wrong happened while modifing root" << std::endl;
+
+  std::cout << test << std::endl;
+
+  std::cout << "---- Test emplace ----" << std::endl;
+
+  test.emplace(3, 1.5);
 
   std::cout << test << std::endl;
 
