@@ -41,9 +41,9 @@ public:
   iterator find(const key_type& x) noexcept {
     auto tmp = root.get();
     while (tmp)
-      if (compare(x, tmp->key_val.first))
+      if (compare(x, tmp->key()))
         tmp = tmp->left_child.get();
-      else if (compare(tmp->key_val.first, x))
+      else if (compare(tmp->key(), x))
         tmp = tmp->right_child.get();
       else break;
     return tmp ? iterator{tmp} : end();
@@ -53,9 +53,9 @@ public:
   const_iterator find(const key_type& x) const noexcept {
     auto tmp = root.get();
     while (tmp)
-      if (compare(x, tmp->key_val.first))
+      if (compare(x, tmp->key()))
         tmp = tmp->left_child.get();
-      else if (compare(tmp->key_val.first, x))
+      else if (compare(tmp->key(), x))
         tmp = tmp->right_child.get();
       else break;
     return tmp ? const_iterator{tmp} : end();
@@ -142,9 +142,9 @@ std::pair<typename bst<K, V, Comp>::iterator, bool> bst<K, V, Comp>::_lazy_inser
   node_t* tmp = root.get();
   while (tmp) {
     parent = tmp;
-    if (compare(x.first, tmp->key_val.first))
+    if (compare(x.first, tmp->key()))
       tmp = tmp->left_child.get();
-    else if (compare(tmp->key_val.first, x.first))
+    else if (compare(tmp->key(), x.first))
       tmp = tmp->right_child.get();
     else {
       inserted = false;
@@ -180,9 +180,9 @@ std::pair<typename bst<K, V, Comp>::iterator, bool> bst<K, V, Comp>::_insert(Ts&
   node_t* tmp = root.get();
   while (tmp) {
     parent = tmp;
-    if (compare(new_node->key_val.first, tmp->key_val.first))
+    if (compare(new_node->key(), tmp->key()))
       tmp = tmp->left_child.get();
-    else if (compare(tmp->key_val.first, new_node->key_val.first))
+    else if (compare(tmp->key(), new_node->key()))
       tmp = tmp->right_child.get();
     else {
       inserted = false;
@@ -208,6 +208,8 @@ struct bst<K, V, Comp>::node_t {
 
   template <typename... Ts>
   node_t(Ts&&... args) : key_val{std::forward<Ts>(args)...} {};
+
+  const K& key() const noexcept { return key_val.first; }
 
   /* Return a pointer to the node with the smallest key of the sub-tree starting from this node */
   node_t* get_minimum() noexcept {
@@ -248,7 +250,7 @@ struct bst<K, V, Comp>::node_t {
     //TODO: Add assert to check that childs are not alredy occupied
     //TODO: Add assert to ckeck that keys are not equal
     x->parent = this;
-    if (Comp{}(x->key_val.first, this->key_val.first))
+    if (Comp{}(x->key(), this->key()))
       left_child.reset(x);
     else
       right_child.reset(x);
